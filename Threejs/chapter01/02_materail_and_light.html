@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>02 材质和灯光</title>
+  <style>
+    body{
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+  <script src="../libs/three.min.js"></script>
+</head>
+<body>
+  <div id="webgl-output"></div>
+</body>
+<script>
+  function init(){
+    
+    const scene = new THREE.Scene();
+    
+    const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+    
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setClearColor(new THREE.Color(0x000000));
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    // 为了渲染阴影
+    // 告诉渲染器需要渲染阴影效果，除此还需指定哪个物体投射阴影哪个物体需要接收阴影
+    renderer.shadowMap.enabled = true; // renderer.shadowMapEnabled = true; 也可
+    
+    
+    
+    const axes = new THREE.AxesHelper(20); // 参数 轴的线段长度
+    scene.add(axes);
+
+    
+    const planeGeometry = new THREE.PlaneGeometry(60, 20); // 1. 宽 （x轴） 2. 高(y轴) 3. widthSegment 4. heighSegment
+    const planeMaterial = new THREE.MeshLambertMaterial({
+      color: 0xffffff
+    });
+
+    const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+    plane.rotation.x = -0.5 * Math.PI;
+    plane.position.set(15, 0, 0);
+    plane.receiveShadow = true; // 接收阴影
+    scene.add(plane);
+
+
+    
+    const cubeGeometry = new THREE.BoxGeometry(4,4,4);
+    const cubeMaterial = new THREE.MeshLambertMaterial({
+      color: 0xFF0000,
+      // wireframe: true
+    });
+    const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+    cube.position.set(-4, 3, 0);
+    cube.castShadow = true;
+    scene.add(cube);
+
+    
+    const sphereGeomety = new THREE.SphereGeometry(4, 20,20);
+    const sphereMaterail = new THREE.MeshLambertMaterial({
+      color: 0x7777ff,
+      // wireframe: true
+    });
+    const sphere = new THREE.Mesh(sphereGeomety, sphereMaterail);
+    sphere.position.set(20,4,2);
+    sphere.castShadow = true;
+    scene.add(sphere);
+
+    
+
+    
+    camera.position.set(-20, 40, 30); // 位置
+    camera.lookAt(scene.position); // 朝向
+
+    // 添加灯光
+    const spotLight = new THREE.SpotLight(0xffffff);
+    spotLight.position.set(-40, 40, -20);
+    spotLight.shadow.mapSize = new THREE.Vector2(1024, 1024); // 阴影变换
+    spotLight.shadow.camera.far = 130; 
+    spotLight.shadow.camera.near = 40;
+    spotLight.castShadow = true; // 投射阴影
+    scene.add(spotLight)
+
+
+
+    document.getElementById('webgl-output').appendChild(renderer.domElement);
+    renderer.render(scene, camera);
+  }
+  window.onload = init;
+</script>
+</html>
