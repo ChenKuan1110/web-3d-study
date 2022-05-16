@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第一个场景</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+  </style>
+</head>
+<script src="../libs/three.min.js"></script>
+<script src="../libs/stats.js"></script>
+<script src="../libs/dat.gui.min.js"></script>
+<script src="../libs/TrackballControls.js"></script>
+
+<body>
+  <div id="webgl-output"></div>
+</body>
+<script>
+  let scene;
+  let camera;
+  let renderer;
+
+  
+
+
+  function init () {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+
+    // 状态显示面板
+    const stats = initState();
+
+    // 初始化 dat.gui 组件
+    // dat.gui 控制对象
+    const controls = new function () {
+      this.rotationSpeed = 0.02;
+      this.numberOfObjects = scene.children.length;
+
+      this.removeCube = function () {
+        const allChildren = scene.children;
+        const lastObject = allChildren[allChildren.length - 1];
+        if (lastObject instanceof THREE.Mesh) {
+          scene.remove(lastObject);
+          this.numberOfObjects = scene.children.length;
+        }
+      }
+
+      this.addCube = function () {
+        const cubeSize = Math.ceil((Math.random() * 3));
+        const cubeGeometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+        const cubeMaterial = new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff });
+        const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+        cube.castShadow = true;
+        cube.name = "cube-" + scene.children.length;
+
+        // position the cube randomly in the scene
+        cube.position.x = -30 + Math.round((Math.random() * 60));
+        cube.position.y = Math.round((Math.random() * 5));
+        cube.position.z = -20 + Math.round((Math.random() * 40));
+
+        // add the cube to the scene
+        scene.add(cube);
+        this.numberOfObjects = scene.children.length;
+      };
+
+      this.outputObjects = function () {
+        console.log(scene.children);
+      }
+    }
+    {
+
+      const datgui = new dat.GUI();
+      datgui.add(controls, 'addCube');
+      datgui.add(controls, 'removeCube');
+      datgui.add(controls, 'outputObjects');
+      datgui.add(controls, 'numberOfObjects').listen();
+    }
+
+    // 轴
+    // const axes = new THREE.AxesHelper(40);
+    // scene.add(axes);
+
+    const planeGeometry = new THREE.PlaneGeometry(60, 40, 1, 1);
+    const planeMaterail = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const plane = new THREE.Mesh(planeGeometry, planeMaterail);
+    plane.rotation.x = - Math.PI / 2; // 沿 x 轴旋转 -90度
+    plane.position.set(15, 0, 0);
+    scene.add(plane);
+
+    // 环境光
+    const ambientLight = new THREE.AmbientLight(0x3c3c3c);
+    scene.add(ambientLight);
+
+    // 点光源
+    const spotLight = new THREE.SpotLight(0xfffff, 1.2, 150, 120); // 颜色 光强 最远距离 散射角度
+    spotLight.position.set(-40, 60, -10);
+    scene.add(spotLight);
+
+
+
+    scene.add(camera);
+    camera.position.set(-20, 40, 30);
+    camera.lookAt(scene.position);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    document.querySelector('#webgl-output').appendChild(renderer.domElement);
+
+    // 实现通过鼠标控制摄像机
+    const trackballControls = new THREE.TrackballControls(camera, renderer.domElement);
+    const clock = new THREE.Clock();
+
+
+
+    // 渲染场景函数
+    function renderScene () {
+      stats.update(); // 更新 stats 面板信息
+      trackballControls.update(clock.getDelta()); // 更新 trackballControls
+
+      // 旋转所有立方体
+      scene.traverse(e => {
+        if (e instanceof THREE.Mesh && e !== plane) {
+          e.rotation.x += controls.rotationSpeed;
+          e.rotation.y += controls.rotationSpeed;
+          e.rotation.z += controls.rotationSpeed;
+        }
+      });
+
+      requestAnimationFrame(renderScene);
+      renderer.render(scene, camera);
+    }
+
+    renderScene();
+  }
+  // 初始化帧数显示组件
+  function initState () {
+    const stats = new Stats();
+    stats.setMode(0); // 0: fps, 1: ms, 2: mb, 3+ : custom
+    // 设置其 css样式，固定到左上角
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.left = '0px';
+    stats.domElement.style.top = '0px';
+    document.body.appendChild(stats.domElement);
+    return stats;
+  }
+
+  // window 大小改变，调整
+  function onResize () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  window.addEventListener('resize', onResize);
+  window.addEventListener('load', init);
+</script>
+
+</html>

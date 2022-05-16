@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自定义几何体</title>
+  <style>
+    body{
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<script src="../libs/three.min.js"></script>
+<script src="../libs/stats.js"></script>
+<script src="../libs/TrackballControls.js"></script>
+<script src="../libs/OrbitControls.js"></script>
+<body>
+  <div id="webgl-output"></div>
+</body>
+<script>
+  let renderer, camera, scene;
+
+  function init(){
+    stats = initStats();
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.01, 100);
+    renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true // 开启阴影
+    document.querySelector('#webgl-output').appendChild(renderer.domElement);
+
+    scene.background = new THREE.Color(0xeeeeee);
+
+    const axes = new THREE.AxesHelper(100);
+    scene.add(axes);
+
+    const planeGeometry = new THREE.PlaneGeometry(40, 60);
+    const planeMaterail = new THREE.MeshBasicMaterial({color: 0xf3e896});
+    const plane = new THREE.Mesh(planeGeometry, planeMaterail);
+    // plane.rotation.x = -Math.PI / 2;
+    plane.receiveShadow = true;
+    scene.add(plane);
+
+    const spotLight = new THREE.SpotLight(0xff0000);
+    spotLight.castShadow = true;
+    spotLight.position.set(20, 20, 100);
+    scene.add(spotLight);
+
+
+    // 立方体
+    const cubeGeometry = new THREE.BoxGeometry(20, 20, 20);
+    const cubeMaterail = new THREE.MeshLambertMaterial({
+      color: 0x83ff33,
+      wireframe: true
+    });
+    const cube = new THREE.Mesh(cubeGeometry, cubeMaterail);
+    cube.position.z = 10;
+    cube.castShadow = true;
+    scene.add(cube);
+    console.log('使用cubeGeometry创建的立方体对象 => ', cube);
+
+
+    // 用顶点数据渲染立方体
+    {
+      const custumGeometry = new THREE.BufferGeometry();
+      // 创建顶点
+      const p1 = new THREE.Vector3(1, 3,1);
+      const p2 = new THREE.Vector3(1, 3,-1);
+      const p3 = new THREE.Vector3(1, -1,1);
+      const p4 = new THREE.Vector3(1, -1,-1);
+      const p5 = new THREE.Vector3(-1, 3,-1);
+      const p6 = new THREE.Vector3(-1, 3,1);
+      const p7 = new THREE.Vector3(-1, -1,-1);
+      const p8 = new THREE.Vector3(-1, -1,1);
+
+
+      custumGeometry.setAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
+      const material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+      const mesh = new THREE.Mesh( custumGeometry, material );
+      scene.add(mesh);
+      console.log(custumGeometry);
+    }
+
+
+    // EdgesGeometry例子
+    const geometry = new THREE.BoxGeometry( 100, 100, 100 );
+    const edges = new THREE.EdgesGeometry( geometry );
+    const line = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0x00ffff } ) );
+    scene.add( line );
+
+
+
+    camera.position.set(40,40,40);
+    camera.lookAt(scene.position);
+
+    // control
+    const trackballControls = new THREE.TrackballControls(camera, renderer.domElement);
+    const clock = new THREE.Clock();
+
+
+    function renderScene(){
+      stats.update();
+      trackballControls.update(clock.getDelta());
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(renderScene);
+    }
+
+    renderScene();
+  }
+
+  function onResize(){
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+  }
+
+  function initStats() {
+    const stats = new Stats();
+    stats.setMode(0);
+
+    // 样式设置 固定到左上角
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.left = '0px';
+    stats.domElement.style.top = '0px';
+
+    // 添加到dom中
+    document.body.appendChild(stats.domElement);
+    return stats;
+  }
+  
+  window.addEventListener('load', init);
+  window.addEventListener('resize', onResize);
+</script>
+</html>

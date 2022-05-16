@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mesh 属性</title>
+  <style>
+    body{
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<script src="../libs/three.min.js"></script>
+<script src="../libs/stats.js"></script>
+<script src="../libs/TrackballControls.js"></script>
+<script src="../libs/OrbitControls.js"></script>
+<script src="../libs/dat.gui.min.js"></script>
+<body>
+  <div id="webgl-output"></div>
+</body>
+<script>
+let renderer, camera, scene;
+
+  function init(){
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.01, 1000);
+    renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true // 开启阴影
+    document.querySelector('#webgl-output').appendChild(renderer.domElement);
+
+    scene.background = new THREE.Color(0xeeeeee);
+
+    const axes = new THREE.AxesHelper(100);
+    scene.add(axes);
+
+    const planeGeometry = new THREE.PlaneGeometry(40, 60);
+    const planeMaterail = new THREE.MeshBasicMaterial({color: 0xfe89ba});
+    const plane = new THREE.Mesh(planeGeometry, planeMaterail);
+    plane.rotateX(-Math.PI /2);
+    plane.receiveShadow = true;
+    scene.add(plane);
+
+    const spotLight = new THREE.SpotLight(0xffffff);
+    spotLight.position.set(20, 30, 20);
+    spotLight.castShadow = true;
+    scene.add(spotLight);
+
+
+    const boxGeometry = new THREE.BoxGeometry(6,8,4);
+    const boxMaterial = new THREE.MeshLambertMaterial({color: 0x44ff44});
+    const box = new THREE.Mesh(boxGeometry, boxMaterial);
+    box.name = 'box';
+    {
+      // position 属性
+      box.position.x = 10; // 第一种方式设置
+      box.position.set(10, 10, 10); // 第二种方式设置
+      box.position = new THREE.Vector3(20, 20, 20); // 第三种方式设置
+    }
+    scene.add(box);
+
+    camera.position.set(20, 30, 25);
+    camera.lookAt(scene.position);
+
+    // control
+    // const trackballControls = new THREE.TrackballControls(camera, renderer.domElement);
+    // const clock = new THREE.Clock();
+
+    stats = initStats();
+
+    // orbit control
+    const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    // *************** dat.gui **************************
+    const controls = {
+      scaleX: 1,
+      scaleY: 1,
+      scaleZ: 1,
+      scale: 1,
+      positionX: 0,
+      positionY: 0,
+      positionZ: 0,
+      rotationX: 0,
+      rotationY: 0,
+      rotationZ: 0,
+      translateX: 0,
+      translateY: 0,
+      translateZ: 0,
+      translate: function() {
+        console.log('translate func invoked');
+        console.log(this.translateX, this.translateY, this.translateZ);
+        console.log(box)
+        box.translateX(this.translateX);
+        box.translateY(this.translateY);
+        box.translateZ(this.translateZ);
+
+        this.positionX = box.position.x;
+        this.positionY = box.position.y;
+        this.positionZ = box.position.z;
+      },
+      visible: true
+    };
+    const gui = new dat.GUI();
+
+    // 缩放
+    guiScale = gui.addFolder('scale');
+    guiScale.add(controls, 'scaleX', 0,5);
+    guiScale.add(controls, 'scaleY', 0,5);
+    guiScale.add(controls, 'scaleZ', 0,5);
+
+    // 位置
+    const guiPosition = gui.addFolder('position')
+    const contX = guiPosition.add(controls, 'positionX', -17,17);
+    const contY = guiPosition.add(controls, 'positionZ', -28,28);
+    const contZ = guiPosition.add(controls, 'positionY', -4,10);
+
+    // 通过回调的方式修改位置
+    contX.listen();
+    contX.onChange(value=>{
+      box.position.x = controls.positionX;
+    });
+    contY.listen();
+    contY.onChange(value=>{
+      box.position.y = controls.positionY;
+    });
+    contZ.listen();
+    contZ.onChange(value=>{
+      box.position.z = controls.positionZ;
+    });
+
+    // 平移
+    const guiTranslate = gui.addFolder('tanslate');
+    guiTranslate.add(controls, 'translateX', -10, 10);
+    guiTranslate.add(controls, 'translateY', -4, 4);
+    guiTranslate.add(controls, 'translateZ', -10, 10);
+    guiTranslate.add(controls, 'translate');
+
+    // 旋转
+    const guiRotate = gui.addFolder('rotate');
+    guiRotate.add(controls, 'rotationX', -4, 4);
+    guiRotate.add(controls, 'rotationY', -4, 4);
+    guiRotate.add(controls, 'rotationZ', -4, 4);
+
+    // 是否可见
+    const guiVisibel = gui.add(controls, 'visible');
+    guiVisibel.listen();
+    guiVisibel.onChange(value=>{
+      // console.log(value);
+      box.visible = value;
+    });
+
+
+    // *************** dat.gui end **************************
+
+
+    function renderScene(){
+      stats.update();
+      orbitControls.update();
+
+      // dat.gui 控制的变量
+      {
+        // 缩放
+        box.scale.set(controls.scaleX, controls.scaleY, controls.scaleZ);
+        // 位置
+        // 直接修改位置
+        // box.position.x = controls.positionX;
+        // box.position.y = controls.positionY;
+        // box.position.z = controls.positionZ;
+
+        // 旋转
+        box.rotation.x = controls.rotationX;
+        box.rotation.y = controls.rotationY;
+        box.rotation.z = controls.rotationZ;
+      }
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(renderScene);
+    }
+
+    renderScene();
+  }
+
+  function onResize(){
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+  }
+
+  function initStats() {
+    const stats = new Stats();
+    stats.setMode(0);
+
+    // 样式设置 固定到左上角
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.left = '0px';
+    stats.domElement.style.top = '0px';
+
+    // 添加到dom中
+    document.body.appendChild(stats.domElement);
+    return stats;
+  }
+  
+  window.addEventListener('load', init);
+  window.addEventListener('resize', onResize);
+</script>
+</html>
