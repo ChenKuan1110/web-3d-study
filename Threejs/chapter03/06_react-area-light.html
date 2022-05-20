@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>半球光 hemisphereLight</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+  </style>
+  <script src="../libs/three.min.js"></script>
+  <script src="../libs/stats.js"></script>
+  <script src="../libs/dat.gui.min.js"></script>
+  <script src="../libs/OrbitControls.js"></script>
+  <!-- rectAreaLightHelper -->
+  <script src="../libs/RectAreaLightHelper.js"></script>
+  <!-- 使用 AreaLight 必须导入RectAreaLightUniformsLib -->
+  <script src="../libs/RectAreaLightUniformsLib.js"></script>
+</head>
+
+<body>
+  <div id="webgl-output"></div>
+</body>
+<script>
+
+  let camera;
+  let renderer;
+  let scene;
+  let status; // 状态面板实例
+
+  // dat.gui 对象
+  const guiObj = {
+    color1: '#ff0000',
+    intensity1: 5,
+    color2: '#00ff00',
+    intensity2: 5,
+    color3: '#0000ff',
+    intensity3: 5
+  }
+
+  function init () {
+
+    scene = new THREE.Scene();
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio( window.devicePixelRatio ); // 设置像素比
+    renderer.setAnimationLoop(animation); // 设置动画循环 等同于调用 requestAnimationFrame
+    renderer.outputEncoding = THREE.sRGBEncoding; // 定义渲染器的输出编码， 默认为 THREE.LinearEncoding
+    // renderer.shadowMap.enabled = true;
+    scene.background = new THREE.Color('#eee');
+    document.getElementById('webgl-output').appendChild(renderer.domElement);
+
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, -15);
+
+    // 调用 RectAreaLightUniformsLib 初始化
+    THREE.RectAreaLightUniformsLib.init();
+
+
+    // const axesHelper = new THREE.AxesHelper(1000);
+    // scene.add(axesHelper);
+
+
+    // 平面光
+    // 构造函数参数 1. color 2. intensity 3. width 4. height
+    const rectLight1 = new THREE.RectAreaLight(guiObj.color1, guiObj.intensity1, 4, 10);
+    rectLight1.position.set(5, 5, 5);
+    scene.add(rectLight1);
+
+    const rectLight2 = new THREE.RectAreaLight(guiObj.color2, guiObj.intensity2, 4, 10);
+    rectLight2.position.set(0, 5, 5);
+    scene.add(rectLight2);
+
+    const rectLight3 = new THREE.RectAreaLight(guiObj.color3, guiObj.intensity3, 4, 10);
+    rectLight3.position.set(-5, 5, 5);
+    scene.add(rectLight3);
+
+
+    // 添加 RectAreaLightHelper 
+    // rectAreatLight在场景中不会显示，只有照射在物体上才能显示
+    // 可通过在常见中添加该对象实例，方便调整位置等操作
+    scene.add( new THREE.RectAreaLightHelper( rectLight1 ) );
+    scene.add( new THREE.RectAreaLightHelper( rectLight2 ) );
+    scene.add( new THREE.RectAreaLightHelper( rectLight3 ) );
+
+
+    // dat.gui 配置
+    {
+      const gui =  new dat.GUI();
+
+      gui.addColor(guiObj, 'color1').onChange(color=>{
+        rectLight1.color = new THREE.Color(color);
+      });
+      gui.add(guiObj, 'intensity1', 0, 10).onChange(intensity => {
+        rectLight1.intensity = intensity;
+      });
+      gui.addColor(guiObj, 'color2').onChange(color=>{
+        rectLight2.color = new THREE.Color(color);
+      });
+      gui.add(guiObj, 'intensity2', 0, 10).onChange(intensity => {
+        rectLight2.intensity = intensity;
+      });
+      gui.addColor(guiObj, 'color3').onChange(color=>{
+        rectLight3.color = new THREE.Color(color);
+      });
+      gui.add(guiObj, 'intensity3', 0, 10).onChange(intensity => {
+        rectLight3.intensity = intensity;
+      });
+    }
+
+
+    
+
+
+    // 地板
+    const geoFloor = new THREE.BoxGeometry( 2000, 0.1, 2000 );
+    const matStdFloor = new THREE.MeshStandardMaterial( { color: 0x808080, roughness: 0.1, metalness: 0 } );
+    const mshStdFloor = new THREE.Mesh( geoFloor, matStdFloor );
+    scene.add( mshStdFloor );
+
+    // knot 🪢
+    const geoKnot = new THREE.TorusKnotGeometry( 1.5, 0.5, 200, 16 );
+    const matKnot = new THREE.MeshStandardMaterial( { color: 0xffffff, roughness: 0, metalness: 0 } );
+    const meshKnot = new THREE.Mesh( geoKnot, matKnot );
+    meshKnot.name = 'meshKnot';
+    meshKnot.position.set( 0, 5, 0 );
+    scene.add( meshKnot );
+
+    // 轨道控制器
+    const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+    orbitControls.target.copy(meshKnot.position);
+    orbitControls.update();
+
+    // 显示帧数显示面板
+    status = initState();
+
+  }
+
+  // 初始化帧数显示组件
+  function initState () {
+    const stats = new Stats();
+    stats.setMode(0); // 0: fps, 1: ms, 2: mb, 3+ : custom
+    // 设置其 css样式，固定到左上角
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.left = '0px';
+    stats.domElement.style.top = '0px';
+    document.body.appendChild(stats.domElement);
+    return stats;
+  }
+
+  // window 大小改变，调整
+  function onResize () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.updateProjectionMatrix();
+  }
+
+  window.addEventListener('resize', onResize);
+
+  window.onload = init;
+
+  function animation (time) {
+    const mesh = scene.getObjectByName('meshKnot');
+    mesh.rotation.y = time / 1000;
+
+    renderer.render(scene, camera);
+    status.update();
+  }
+</script>
+
+<script>
+  // three.js
+</script>
+
+</html>

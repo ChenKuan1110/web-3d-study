@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>聚光灯 SpotLight</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+  </style>
+  <script src="../libs/three.min.js"></script>
+  <script src="../libs/stats.js"></script>
+  <script src="../libs/dat.gui.min.js"></script>
+  <script src="../libs/OrbitControls.js"></script>
+</head>
+
+<body>
+  <div id="webgl-output"></div>
+</body>
+<script>
+
+  let camera;
+  let renderer;
+  let scene;
+
+  function init () {
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    scene.background = new THREE.Color('#ccc');
+
+    const axes = new THREE.AxesHelper(20); // 参数 轴的线段长度
+    scene.add(axes);
+
+    const planeGeometry = new THREE.PlaneGeometry(60, 20); // 1. 宽 （x轴） 2. 高(y轴) 3. widthSegment 4. heighSegment
+    const planeMaterial = new THREE.MeshLambertMaterial({
+      color: 0xffffff
+    });
+
+    const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+    plane.rotation.x = -0.5 * Math.PI;
+    plane.position.set(15, 0, 0);
+    plane.receiveShadow = true; // 接收阴影
+    scene.add(plane);
+
+    const cubeGeometry = new THREE.BoxGeometry(4, 4, 4);
+    const cubeMaterial = new THREE.MeshLambertMaterial({
+      color: 0xFF0000
+    });
+    const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+    cube.position.set(-4, 3, 0);
+    cube.castShadow = true;
+    scene.add(cube);
+
+    const sphereGeomety = new THREE.SphereGeometry(4, 20, 20);
+    const sphereMaterail = new THREE.MeshLambertMaterial({
+      color: 0x7777ff
+    });
+    const sphere = new THREE.Mesh(sphereGeomety, sphereMaterail);
+    sphere.position.set(20, 4, 2);
+    sphere.castShadow = true;
+    scene.add(sphere);
+
+    // ------------ dat.gui 配置 start
+    const controls = {
+      AmbientLightColor: '#ffffff',
+      spotLightColor: '#fff',
+      angle: 0.4,
+      intensity: 0.85,
+      distance: 100,
+      debug: true,
+      onlyShadow: false,
+      target: 'cube',
+      castShadow: true,
+      spotLightVisible: true
+    };
+    const gui = new dat.GUI();
+    gui.addColor(controls, 'AmbientLightColor').onChange(v => {
+      ambientLight.color = new THREE.Color(v);
+    });
+    gui.addColor(controls, 'spotLightColor').onChange(v => {
+      spotLight.color = new THREE.Color(v);
+    });
+    gui.add(controls, 'intensity', 0, 2).onChange(v => {
+      ambientLight.intensity = v;
+    });
+    gui.add(controls, 'spotLightVisible').onChange(v=>{
+      spotLight.visible = v;
+    });
+    gui.add(controls, 'angle', 0, Math.PI * 2).onChange(v=>{
+      spotLight.angle = v;
+    });
+    gui.add(controls, 'distance', 0, 100).onChange(v=>{
+      spotLight.distance = v;
+    });
+    gui.add(controls, 'castShadow').onChange(v => {
+      spotLight.castShadow = v;
+    });
+    gui.add(controls, 'target', ['sphere', 'cube', 'plane']).onChange(v => {
+      switch(v){
+        case 'sphere':
+          spotLight.target = sphere;
+          break;
+        case 'cube':
+          spotLight.target = cube;
+          break;
+        case 'plane':
+          spotLight.target = plane;
+          break;
+        default:
+          const target = new THREE.Object3D();
+          target.position = new THREE.Vector3(5,0,0);
+          spotLight.target = target;
+      }
+    });
+    gui.add(controls, 'debug').onChange(v=>{
+      // spotLight.shadowCameraVisible=v;
+      v ? scene.add(helper): scene.remove(helper)
+    });
+    // ------------ dat.gui 配置 end
+
+
+    // 添加灯光 聚光灯
+    const spotLight = new THREE.SpotLight(controls.spotLightColor);
+    spotLight.position.set(-40, 40, -20);
+    spotLight.castShadow = controls.castShadow;
+    spotLight.shadow.camera.near = 1;
+    spotLight.shadow.camera.far = 100;
+    spotLight.shadow.camera.fov = 120;
+    spotLight.target = cube; // 聚光灯照向位置
+    spotLight.angle = controls.angle;
+    spotLight.distance = controls.distance;
+    spotLight.shadow.mapSize = new THREE.Vector2(1024, 1024);
+    spotLight.enabled = controls.spotLightVisible;
+    scene.add(spotLight);
+
+    // 灯光 debug : 通过 实例化 CameraHelper 实现，需要在场景渲染的方法中调用 其update()
+    const helper = new THREE.CameraHelper( spotLight.shadow.camera );
+    if(controls.debug){
+      scene.add(helper);
+    };
+
+    // 环境光
+    const ambientLight = new THREE.AmbientLight(controls.AmbientLightColor);
+    ambientLight.intensity = controls.intensity;
+    scene.add(ambientLight);
+
+    camera.position.set(-20, 20, 30);
+    camera.lookAt(scene.position);
+
+
+    document.getElementById('webgl-output').appendChild(renderer.domElement);
+    // 实现通过鼠标控制摄像机
+    const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+    // 显示帧数显示面板
+    const status = initState();
+
+    let step = 0;
+    // 封装动画后的场景渲染函数
+    function renderScene () {
+      orbitControls.update() // 更新 OrbitControls
+      status.update(); // 更新 state 面板数据
+      requestAnimationFrame(renderScene);
+
+      // 让立方体旋转起来
+      cube.rotation.x += 0.02;
+      cube.rotation.y += 0.02;
+      cube.rotation.z += 0.02;
+
+      // 让球体弹跳起来
+      step += 0.04;
+      sphere.position.x = 20 + 10 * Math.cos(step);
+      sphere.position.y = 2 + 10 * Math.abs(Math.sin(step));
+
+      // camera helper
+      helper.update();
+
+      renderer.render(scene, camera)
+    }
+    // 渲染场景
+    renderScene();
+  }
+
+  // 初始化帧数显示组件
+  function initState () {
+    const stats = new Stats();
+    stats.setMode(0); // 0: fps, 1: ms, 2: mb, 3+ : custom
+    // 设置其 css样式，固定到左上角
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.left = '0px';
+    stats.domElement.style.top = '0px';
+    document.body.appendChild(stats.domElement);
+    return stats;
+  }
+
+  // window 大小改变，调整
+  function onResize () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    // camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  window.addEventListener('resize', onResize);
+
+  window.onload = init;
+</script>
+
+<script>
+  // three.js
+</script>
+
+</html>
