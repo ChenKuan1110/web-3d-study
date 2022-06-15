@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LineBasicMaterial - 基础线条材质</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #webgl-output {
+      width: 100%;
+      height: 100%;
+    }
+
+  </style>
+</head>
+<script src="../libs/three.min.js"></script>
+<script src="../libs/stats.js"></script>
+<script src="../libs/dat.gui.min.js"></script>
+<script src="../libs/SceneUtils.js"></script>
+
+<body>
+  <div id="webgl-output"></div>
+</body>
+<script>
+  let renderer, camera, scene;
+  let stats;
+  let orbitControls;
+
+
+
+  function init () {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color('#eee');
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(35, 90, 80);
+    camera.lookAt(scene.position);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(new THREE.Color(0x000000), 1.0); // 设置颜色和透明度
+    renderer.setAnimationLoop(animation);
+    document.getElementById('webgl-output').appendChild(renderer.domElement);
+
+
+    // 辅助元素
+    {
+      // const axes = new THREE.AxesHelper(100);
+      // scene.add(axes);
+
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(400, 400),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+      );
+      ground.name = 'ground';
+      ground.receiveShadow = true;
+      ground.position.y = -40;
+      ground.rotation.x = -Math.PI / 2;
+      scene.add(ground);
+    }
+
+    {
+      const spotLight = new THREE.SpotLight(0xffffff);
+      spotLight.position.set(-0, 30, 60);
+      spotLight.castShadow = true;
+      spotLight.intensity = 0.6;
+      scene.add(spotLight);
+    }
+
+    // 创建线段
+    const points = gosper(4, 60); // 采用工具方法生成顶点数据
+
+    const material = new THREE.LineBasicMaterial({
+      opacity: 1,
+      color: 0x0000ff,
+      lineWidth: 1
+    });
+
+    const geometry = new THREE.BufferGeometry().setFromPoints( points );
+
+    const line = new THREE.Line( geometry, material );
+    line.name = 'my-line'
+    scene.add( line );
+    
+    
+
+
+
+
+
+    // stats
+    stats = initStats();
+
+
+  }
+
+  function animation () {
+    renderer.render(scene, camera);
+    stats.update();
+
+    // 让线动起来
+    const line = scene.getObjectByName('my-line');
+
+    line.rotation.x += 0.01;
+    line.rotation.y += 0.02;
+    
+  }
+
+  function initStats () {
+    const stats = new Stats();
+    stats.setMode(0); // 0: fps, 1: ms, 2: mb, 3+ : custom
+    // 设置其 css样式，固定到左上角
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.left = '0px';
+    stats.domElement.style.top = '0px';
+    document.body.appendChild(stats.domElement);
+    return stats;
+  }
+
+  function onResize () {
+    console.log('onResize')
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+
+  /**
+   * 工具方法
+   */
+  function gosper (a, b) {
+
+    let turtle = [0, 0, 0];
+    let points = [];
+    let count = 0;
+
+    rg(a, b, turtle);
+
+
+    return points;
+
+    function rt (x) {
+      turtle[2] += x;
+    }
+
+    function lt (x) {
+      turtle[2] -= x;
+    }
+
+    function fd (dist) {
+      //                ctx.beginPath();
+      points.push({ x: turtle[0], y: turtle[1], z: Math.sin(count) * 5 });
+      //                ctx.moveTo(turtle[0], turtle[1]);
+
+      var dir = turtle[2] * (Math.PI / 180);
+      turtle[0] += Math.cos(dir) * dist;
+      turtle[1] += Math.sin(dir) * dist;
+
+      points.push({ x: turtle[0], y: turtle[1], z: Math.sin(count) * 5 });
+      //                ctx.lineTo(turtle[0], turtle[1]);
+      //                ctx.stroke();
+
+    }
+
+    function rg (st, ln, turtle) {
+
+      st--;
+      ln = ln / 2.6457;
+      if (st > 0) {
+        //                    ctx.strokeStyle = '#111';
+        rg(st, ln, turtle);
+        rt(60);
+        gl(st, ln, turtle);
+        rt(120);
+        gl(st, ln, turtle);
+        lt(60);
+        rg(st, ln, turtle);
+        lt(120);
+        rg(st, ln, turtle);
+        rg(st, ln, turtle);
+        lt(60);
+        gl(st, ln, turtle);
+        rt(60);
+      }
+      if (st == 0) {
+        fd(ln)
+        rt(60)
+        fd(ln)
+        rt(120)
+        fd(ln)
+        lt(60)
+        fd(ln)
+        lt(120)
+        fd(ln)
+        fd(ln)
+        lt(60)
+        fd(ln)
+        rt(60)
+      }
+    }
+
+    function gl (st, ln, turtle) {
+      st--;
+      ln = ln / 2.6457;
+      if (st > 0) {
+        //                    ctx.strokeStyle = '#555';
+        lt(60);
+        rg(st, ln, turtle);
+        rt(60);
+        gl(st, ln, turtle);
+        gl(st, ln, turtle);
+        rt(120);
+        gl(st, ln, turtle);
+        rt(60);
+        rg(st, ln, turtle)
+        lt(120)
+        rg(st, ln, turtle);
+        lt(60);
+        gl(st, ln, turtle);
+      }
+      if (st == 0) {
+        lt(60);
+        fd(ln);
+        rt(60);
+        fd(ln);
+        fd(ln);
+        rt(120)
+        fd(ln);
+        rt(60);
+        fd(ln);
+        lt(120);
+        fd(ln);
+        lt(60);
+        fd(ln);
+      }
+    }
+  }
+
+  window.addEventListener('load', init);
+  window.addEventListener('resize', onResize);
+</script>
+
+</html>

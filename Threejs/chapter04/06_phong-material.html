@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phong网格材质</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #webgl-output {
+      width: 100%;
+      height: 100%;
+    }
+
+  </style>
+</head>
+<script src="../libs/three.min.js"></script>
+<script src="../libs/stats.js"></script>
+<script src="../libs/dat.gui.min.js"></script>
+<script src="../libs/SceneUtils.js"></script>
+
+<body>
+  <div id="webgl-output"></div>
+</body>
+<script>
+  let renderer, camera, scene;
+  let stats;
+  let orbitControls;
+
+  const guiControl = {
+    opacity: 1,
+    transparent: false,
+    wireframe: false,
+    wireframeLineWidth: 1,
+    visible: true,
+    side: 'front',
+    selectedMesh: 'cube',
+    color: 0xff0000,
+    emissive: 0x000000, // 自发光颜色
+    specular: 0x111111, // 高光颜色
+    shininess: 30
+  };
+
+
+  function init () {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color('#eee');
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(35, 90, 80);
+    camera.lookAt(scene.position);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(new THREE.Color(0x000000), 1.0); // 设置颜色和透明度
+    renderer.setAnimationLoop(animation);
+    document.getElementById('webgl-output').appendChild(renderer.domElement);
+
+
+    // 辅助元素
+    {
+      // const axes = new THREE.AxesHelper(100);
+      // scene.add(axes);
+
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(400, 400),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+      );
+      ground.name = 'ground';
+      ground.receiveShadow = true;
+      ground.position.y = -40;
+      ground.rotation.x = -Math.PI / 2;
+      scene.add(ground);
+    }
+
+    {
+      const spotLight = new THREE.SpotLight(0xffffff);
+      spotLight.position.set(-0, 30, 60);
+      spotLight.castShadow = true;
+      spotLight.intensity = 0.6;
+      scene.add(spotLight);
+    }
+
+    // 材质
+    const material = new THREE.MeshPhongMaterial({
+      color: guiControl.color
+    });
+    // plane
+    const planeGeo = new THREE.PlaneGeometry(100, 100, 1, 1);
+    const planeMesh = new THREE.Mesh(planeGeo, material);
+    planeMesh.castShadow = true;
+    // scene.add(planeMesh);
+
+    // box
+    const boxGeo = new THREE.BoxGeometry(50, 50, 50);
+    const boxMesh = new THREE.Mesh(boxGeo, material);
+    scene.add(boxMesh);
+    boxMesh.castShadow = true;
+
+    // sphere
+    const sphereGeo = new THREE.SphereGeometry(40, 20, 20);
+    const sphereMesh = new THREE.Mesh(sphereGeo, material);
+    // scene.add(sphereMesh)
+    sphereMesh.castShadow = true;
+
+
+
+    // stats
+    stats = initStats();
+
+
+    // dat.gui
+    {
+      const gui = new dat.GUI();
+      gui.addColor(guiControl, 'color').name('颜色').onChange(color => {
+        material.color = new THREE.Color(color);
+      });
+      gui.add(guiControl, 'opacity', 0, 1).onChange(opacity => {
+        material.opacity = opacity;
+      });
+      gui.add(guiControl, 'transparent').onChange(v => {
+        material.transparent = v;
+      });
+      gui.add(guiControl, 'wireframe').onChange(v => {
+        material.wireframe = v;
+      });
+      gui.add(guiControl, 'wireframeLineWidth', 1, 20, 1).onChange(v => {
+        material.wireframeLinewidth = v
+      });
+      gui.add(guiControl, 'visible').onChange(v => {
+        material.visible = v;
+      });
+      gui.add(guiControl, 'side', ['front', 'back', 'double']).onChange(side => {
+        console.log(side)
+        switch (side) {
+          case 'front':
+            material.side = THREE.FrontSide;
+            break;
+          case 'back':
+            material.side = THREE.BackSide;
+          case 'double':
+            material.side = THREE.DoubleSide;
+            break;
+          default:
+            break;
+        }
+        material.needsUpdate = true;
+      });
+      gui.add(guiControl, 'selectedMesh', ['cube', 'sphere', 'plane']).onChange(name => {
+        scene.remove(boxMesh);
+        scene.remove(sphereMesh);
+        scene.remove(planeMesh);
+        switch (name) {
+          case 'cube':
+            scene.add(boxMesh);
+            break;
+          case 'sphere':
+            scene.add(sphereMesh);
+            // 为 球体添加法向量
+            for (let i = 0, len = sphereMesh.geometry.groups.length; i < len; i++) {
+              // const 
+            }
+            break;
+          case 'plane':
+            scene.add(planeMesh);
+            break;
+          default:
+            break;
+        }
+      });
+      gui.addColor(guiControl, 'emissive').onChange(color => {
+        material.emissive = new THREE.Color(color);
+      });
+      gui.addColor(guiControl, 'specular').onChange(color => {
+        material.specular = new THREE.Color(color);
+      });
+      gui.add(guiControl, 'shininess', 0, 100, 1).onChange(v => {
+        material.shininess = v;
+      });
+    }
+
+  }
+
+  function animation () {
+    renderer.render(scene, camera);
+    stats.update();
+
+    // 让场景中的立方体旋转
+    scene.traverse((something) => {
+      if (something instanceof THREE.Mesh && something.name !== 'ground') {
+        something.rotation.z += 0.01;
+        something.rotation.y += 0.02;
+      }
+    })
+  }
+
+  function initStats () {
+    const stats = new Stats();
+    stats.setMode(0); // 0: fps, 1: ms, 2: mb, 3+ : custom
+    // 设置其 css样式，固定到左上角
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.left = '0px';
+    stats.domElement.style.top = '0px';
+    document.body.appendChild(stats.domElement);
+    return stats;
+  }
+
+  function onResize () {
+    console.log('onResize')
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  window.addEventListener('load', init);
+  window.addEventListener('resize', onResize);
+</script>
+
+</html>
