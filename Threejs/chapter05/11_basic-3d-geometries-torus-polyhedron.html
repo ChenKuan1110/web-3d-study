@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3d几何体 - 多面体 PolyhedronGeometry</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #webgl-output {
+      width: 100%;
+      height: 100%;
+    }
+
+  </style>
+</head>
+<script src="../libs/three.min.js"></script>
+<script src="../libs/stats.js"></script>
+<script src="../libs/dat.gui.min.js"></script>
+<script src="../libs/SceneUtils.js"></script>
+<script src="../libs/OrbitControls.js"></script>
+
+<body>
+  <div id="webgl-output"></div>
+</body>
+<script>
+  const NAME = 'polyhedron';
+  let renderer, camera, scene;
+  let stats;
+  let orbitControls;
+
+
+  const guiControl = {
+    verticesOfCube:[
+      -1,-1,-1,    1,-1,-1,    1, 1,-1,    -1, 1,-1,
+      -1,-1, 1,    1,-1, 1,    1, 1, 1,    -1, 1, 1,
+    ], // 顶点
+    indicesOfFaces: [
+      2,1,0,    0,3,2,
+      0,4,7,    7,3,0,
+      0,1,5,    5,4,0,
+      1,2,6,    6,5,1,
+      2,3,7,    7,6,2,
+      4,5,6,    6,7,4
+    ],
+    radius: 50,
+    detail: 0,
+    type: 'custom',
+    reDraw() {
+      // 移除原几何体对象
+      const oldMesh = scene.getObjectByName(NAME);
+      scene.remove(oldMesh);
+
+      let geo = null; // 新几何体
+      
+      // 判断选择渲染的几何体
+      switch(this.object.type){
+        // custom', 'tetrahedron', 'octahedron', 'dodeca', 'icosahedron'
+        case 'tetrahedron': // 四面体
+          geo = new THREE.TetrahedronGeometry(this.object.radius, this.object.detail);
+          break;
+        case 'octahedron': // 八面体
+        geo = new THREE.OctahedronGeometry(this.object.radius, this.object.detail);
+          break;
+        case 'dodeca': // 十二面体
+        geo = new THREE.DodecahedronGeometry(this.object.radius, this.object.detail);
+          break;
+        case 'icosahedron': // 二十面体
+        geo = new THREE.IcosahedronGeometry(this.object.radius, this.object.detail);
+          break;
+        default:
+        geo = new THREE.PolyhedronGeometry( 
+          this.object.verticesOfCube, 
+          this.object.indicesOfFaces, 
+          this.object.radius,
+          this.object.detail
+        );
+      }
+      
+      // 创建新几何体网格对象
+      const newMesh = createMesh(geo);
+      newMesh.name = NAME;
+      scene.add(newMesh);
+    }
+  };
+
+
+  function init () {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color('#eee');
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(35, 90, 80);
+    camera.lookAt(scene.position);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enable = true;
+    renderer.shadowMap.needsUpdate = true;
+    renderer.setClearColor(new THREE.Color(0x000000), 1.0); // 设置颜色和透明度
+    renderer.setAnimationLoop(animation);
+    document.getElementById('webgl-output').appendChild(renderer.domElement);
+
+
+    // 辅助元素
+    // {
+    //   const axes = new THREE.AxesHelper(100);
+    //   scene.add(axes);
+    // // }
+
+    {
+      // const ground = new THREE.Mesh(
+      //   new THREE.PlaneGeometry(100,100),
+      //   new THREE.MeshLambertMaterial({color: 0xffffff})
+      // );
+      // ground.rotation.x = -Math.PI / 2;
+      // ground.reciveShadow = true; // 接收阴影
+      // scene.add(ground);
+    }
+
+    {
+      const spotLight = new THREE.SpotLight(0xffffff);
+      spotLight.position.set(40,60, 40);
+      spotLight.castShadow = true;
+      spotLight.intensity = 0.6;
+      scene.add(spotLight);
+
+      // 点光源 Helper
+      // const spotLightHelper = new THREE.SpotLightHelper( spotLight );
+      // scene.add( spotLightHelper );
+    }
+
+    // 相机 helper
+    // {
+    //   const cameraHelper = new THREE.CameraHelper(camera);
+    //   scene.add(cameraHelper);
+    // }
+
+    // 自定义多面体
+    const verticesOfCube = [
+        -1,-1,-1,    1,-1,-1,    1, 1,-1,    -1, 1,-1,
+        -1,-1, 1,    1,-1, 1,    1, 1, 1,    -1, 1, 1,
+    ]; // 顶点
+    const indicesOfFaces = [
+        2,1,0,    0,3,2,
+        0,4,7,    7,3,0,
+        0,1,5,    5,4,0,
+        1,2,6,    6,5,1,
+        2,3,7,    7,6,2,
+        4,5,6,    6,7,4
+    ]; // 索引
+    const geometry = new THREE.PolyhedronGeometry( verticesOfCube, indicesOfFaces, 6, 2 );
+    const mesh = createMesh(geometry);
+    mesh.name = NAME;
+    scene.add(mesh);
+
+    // stats
+    stats = initStats();
+
+    // orbitControl
+    orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+
+
+    // dat.gui
+    {
+      const gui = new dat.GUI();
+      gui.add(guiControl, 'radius', 0.1, 100, 1).onChange(guiControl.reDraw);
+      gui.add(guiControl, 'detail', 0, 20, 1).onChange(guiControl.reDraw);
+      gui.add(guiControl, 'type', ['custom', 'tetrahedron', 'Octahedron', 'dodeca', 'icosahedron']).onChange(guiControl.reDraw)
+    }
+  }
+
+  /**
+   *  工具方法： 创建网格对象
+   */
+  function createMesh (geom) {
+    // 法线材质
+    const meshMaterial = new THREE.MeshNormalMaterial({
+      side: THREE.DoubleSide
+    });
+    // 普通材质 - 线框
+    const wireFrameMaterial = new THREE.MeshBasicMaterial({
+      wireframe: true
+    });
+    // 使用工具方法创建 以上两种材质的 网格
+    const mesh = THREE.SceneUtils.createMultiMaterialObject(geom, [meshMaterial, wireFrameMaterial]);
+    return mesh;
+  }
+
+
+  function animation () {
+    stats.update();
+    orbitControls.update();
+
+    // 让场景中的物体动起来
+    const mesh = scene.getObjectByName(NAME);
+    mesh.rotation.y += 0.01;
+
+    renderer.render(scene, camera);
+  }
+
+  function initStats () {
+    const stats = new Stats();
+    stats.setMode(0); // 0: fps, 1: ms, 2: mb, 3+ : custom
+    // 设置其 css样式，固定到左上角
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.left = '0px';
+    stats.domElement.style.top = '0px';
+    document.body.appendChild(stats.domElement);
+    return stats;
+  }
+
+  function onResize () {
+    console.log('onResize')
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  window.addEventListener('load', init);
+  window.addEventListener('resize', onResize);
+</script>
+
+</html>

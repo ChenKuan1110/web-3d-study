@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2d几何体 - 圆 CircleGeometry</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #webgl-output {
+      width: 100%;
+      height: 100%;
+    }
+
+  </style>
+</head>
+<script src="../libs/three.min.js"></script>
+<script src="../libs/stats.js"></script>
+<script src="../libs/dat.gui.min.js"></script>
+<script src="../libs/SceneUtils.js"></script>
+<script src="../libs/OrbitControls.js"></script>
+
+<body>
+  <div id="webgl-output"></div>
+</body>
+<script>
+  const NAME = 'circle';
+  let renderer, camera, scene;
+  let stats;
+  let orbitControls;
+
+
+  const guiControl = {
+    radius: 20,
+    segments: 10,
+    thetaStart: 0,
+    thetaLength: Math.PI / 3,
+    reDraw: function(){
+      const originPlane = scene.getObjectByName(NAME);
+      scene.remove(originPlane);
+      // NOTICE: 注意 该方法中, 通过 this 获取到 该对象的属性
+      const newPlane = createMesh(new THREE.CircleGeometry(
+        this.object.radius,
+        this.object.segments,
+        this.object.thetaStart,
+        this.object.thetaLength
+      ));
+      newPlane.name = NAME;
+      scene.add(newPlane);
+    }
+  };
+
+
+  function init () {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color('#eee');
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(35, 90, 80);
+    camera.lookAt(scene.position);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(new THREE.Color(0x000000), 1.0); // 设置颜色和透明度
+    renderer.setAnimationLoop(animation);
+    document.getElementById('webgl-output').appendChild(renderer.domElement);
+
+
+    // 辅助元素
+    // {
+    //   const axes = new THREE.AxesHelper(100);
+    //   scene.add(axes);
+    // // }
+
+    {
+      const spotLight = new THREE.SpotLight(0xffffff);
+      spotLight.position.set(-0, 30, 60);
+      spotLight.castShadow = true;
+      spotLight.intensity = 0.6;
+      scene.add(spotLight);
+    }
+
+    // circle
+    const circleGeo = new THREE.CircleGeometry(
+      guiControl.radius,
+      guiControl.segments,
+      guiControl.thetaStart,
+      guiControl.thetaLength
+    );
+    const mesh = createMesh(circleGeo);
+    mesh.name = NAME;
+    scene.add(mesh);
+
+    // stats
+    stats = initStats();
+
+    // orbitControl
+    orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+
+
+    // dat.gui
+    {
+      const gui = new dat.GUI();
+      gui.add(guiControl, 'radius', 1, 100, 1).onChange(guiControl.reDraw);
+      gui.add(guiControl, 'segments', 1, 100, 1).onChange(guiControl.reDraw);
+      gui.add(guiControl, 'thetaStart', 0, Math.PI, 0.01).onChange(guiControl.reDraw);
+      gui.add(guiControl, 'thetaLength', 1, Math.PI, 0.01).onChange(guiControl.reDraw);
+    }
+  }
+
+  /**
+   *  工具方法： 创建网格对象
+   */ 
+  function createMesh(geom){
+    // 法线材质
+    const meshMaterial = new THREE.MeshNormalMaterial({
+      side: THREE.DoubleSide
+    });
+    // 普通材质 - 线框
+    const wireFrameMaterial = new THREE.MeshBasicMaterial({
+      wireframe: true
+    });
+    // 使用工具方法创建 以上两种材质的 网格
+    const mesh = THREE.SceneUtils.createMultiMaterialObject(geom, [meshMaterial, wireFrameMaterial]);
+    return mesh;
+  }
+
+  function animation () {
+    stats.update();
+    orbitControls.update();
+
+    // 让场景中的物体动起来
+    const mesh = scene.getObjectByName(NAME);
+    mesh.rotation.y += 0.01;
+
+    renderer.render(scene, camera);
+  }
+
+  function initStats () {
+    const stats = new Stats();
+    stats.setMode(0); // 0: fps, 1: ms, 2: mb, 3+ : custom
+    // 设置其 css样式，固定到左上角
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.left = '0px';
+    stats.domElement.style.top = '0px';
+    document.body.appendChild(stats.domElement);
+    return stats;
+  }
+
+  function onResize () {
+    console.log('onResize')
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  window.addEventListener('load', init);
+  window.addEventListener('resize', onResize);
+</script>
+
+</html>
